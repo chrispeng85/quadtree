@@ -1,0 +1,1 @@
+a physics based simulation of particle movement based on gravitational forces. The 2d space is partitioned into 4 subspaces recursively, and particles within the space are inserted using a quadtree structure for ease of search and computation.
