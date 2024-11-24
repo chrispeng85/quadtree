@@ -57,6 +57,11 @@ void node_init(node** n, double x, double y, double half_dim)
 {
 
     
+    if (*n == NULL) {
+        *n = (node*)malloc(sizeof(node));  
+
+    } //initialize the node if not initialized
+
     (*n)->x = x;
     (*n)->y = y; //set location of quadrant meeting point
 
@@ -92,13 +97,20 @@ double distance(node* stem, particle *p)
 
 
 /*function calculating the force between a particle and the rest of the tree*/
-void update_force (node** stem, particle* p, double G)
+void update_force(node** stem, particle* p, double G)
 {
+
+    if ((*stem) == NULL) return;
 
     if ((*stem)->stem == true) //if stem node, consider whether to use center of mass
     {
+        if ((*stem) == 0) return; //skip empty nodes
+
         double d = distance(*stem,p);
-        if (2*(*stem)->half_dim/d > theta) //too close to be treated as single body
+
+        if (d < epsilon_0) return; //avoid self interaction
+
+        if (2 * (*stem)->half_dim/d > theta) //too close to be treated as single body
         {
             
                 if ((*stem)->subnode_NE != NULL)
@@ -169,11 +181,16 @@ void update_mass(node** stem, node* leaf)
     
     double m_sum = (*stem)->m + leaf->m;
 
+    if (m_sum > 0) { //prevent division by zero
+
     double x = ((*stem)->center_x*(*stem)->m + leaf->x*leaf->m)/m_sum;
     double y = ((*stem)->center_y*(*stem)->m + leaf->y*leaf->m)/m_sum;
 
     (*stem)->center_x = x;
-    (*stem)->center_y = y; //update center of mass coordinates
+    (*stem)->center_y = y;
+    
+    }
+     //update center of mass coordinates
 
     (*stem)->m = m_sum; //update stem node mass
 
@@ -379,48 +396,15 @@ void assign_particle(node** stem, particle *p)
 
 
 /*a function to free all the dynamically allocated nodes*/
-void free_node(node** root)
+void free_node(node* root)
 {
 
-    if((*root)->subnode_NE != NULL)
-    {
-        if ((*root)->subnode_NE->stem == true)
-        {
-            free_node(&(*root)->subnode_NE);
-        }
+    if (root == NULL) return;
 
-        else free((*root)->subnode_NE);
-    }
-
-    if((*root)->subnode_NW != NULL)
-    {
-        if ((*root)->subnode_NW->stem == true)
-        {
-            free_node(&(*root)->subnode_NW);
-        }
-
-        else free((*root)->subnode_NW);
-    }
-
-    if((*root)->subnode_SE != NULL)
-    {
-        if ((*root)->subnode_SE->stem == true)
-        {
-            free_node(&(*root)->subnode_SE);
-        }
-
-        else free((*root)->subnode_SE);
-    }
-
-    if((*root)->subnode_SW != NULL)
-    {
-        if ((*root)->subnode_SW->stem == true)
-        {
-            free_node(&(*root)->subnode_SW);
-        }
-
-        else free((*root)->subnode_SW);
-    }
+    free_node(root->subnode_NE);
+    free_node(root->subnode_NW);
+    free_node(root->subnode_SE);
+    free_node(root->subnode_SW);
 
     free(root);
     return;
@@ -439,7 +423,7 @@ int main(int argc, char* argv[])
 
      char px[10], py[10], m[10],vx[10],vy[10],br[10];
 
-     FILE* file;
+     FILE* file = fopen(argv[2], "rb");
 
 
 
@@ -476,12 +460,11 @@ int main(int argc, char* argv[])
 
     }
 
-    node* root;
+    node* root = NULL;
 
     for (int t=0;t<nstep;t++)
     {
         
-        root = (node*)malloc(sizeof(node));
         node_init(&root,0.5,0.5,0.5); //initiate root node
 
         for (int i=0;i<N;i++)
